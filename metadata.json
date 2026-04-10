@@ -1,0 +1,7 @@
+{
+  "name": "正港購物節積分賞 (Authentic Shopping Festival Points Reward)",
+  "description": "鼓勵香港市民留港消費，將消費積分轉化為水電煤津貼的遊戲化平台。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

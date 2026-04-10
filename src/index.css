@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+
+  --color-nike-black: #111111;
+  --color-nike-white: #FFFFFF;
+  --color-nike-grey-50: #FAFAFA;
+  --color-nike-grey-100: #F5F5F5;
+  --color-nike-grey-200: #E5E5E5;
+  --color-nike-grey-300: #CACACB;
+  --color-nike-grey-500: #707072;
+  --color-nike-red: #D30005;
+  --color-nike-blue: #1151FF;
+  --color-nike-green: #007D48;
+  
+  /* Neon Accents for HK Vibe */
+  --color-hk-neon-pink: #FF00FF;
+  --color-hk-neon-cyan: #00FFFF;
+  --color-hk-neon-yellow: #FFFF00;
+}
+
+@layer base {
+  body {
+    @apply bg-nike-white text-nike-black font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display uppercase tracking-tight;
+  }
+}
+
+.nike-display {
+  @apply font-display uppercase font-bold leading-[0.9] tracking-tighter;
+}
+
+.nike-pill {
+  @apply rounded-full px-6 py-3 font-medium transition-all duration-200;
+}
