@@ -53,9 +53,9 @@ interface ShopLocation {
 
 // --- Mock Data ---
 const INITIAL_MEMBERS: FamilyMember[] = [
-  { id: '1', name: '我 (戶主)', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix', points: 1250, role: 'owner' },
-  { id: '2', name: '阿媽', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Molly', points: 840, role: 'member' },
-  { id: '3', name: '細佬', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Jack', points: 450, role: 'member' },
+  { id: '1', name: '我 (戶主)', avatar: 'https://cdn.midjourney.com/40d04b48-b62c-48c9-9eb5-43cd0237e0c9/0_1.png', points: 1250, role: 'owner' },
+  { id: '2', name: '阿媽', avatar: 'https://cdn.midjourney.com/8c69edd9-975d-4f21-9d47-fb3295428b03/0_0.png', points: 840, role: 'member' },
+  { id: '3', name: '細佬', avatar: 'https://cdn.midjourney.com/2b913bb1-452b-403d-abab-ffc53465bb7a/0_3.png', points: 450, role: 'member' },
 ];
 
 const RECENT_RECEIPTS: Receipt[] = [
@@ -67,6 +67,22 @@ const RECENT_RECEIPTS: Receipt[] = [
 const SHOP_LOCATIONS: ShopLocation[] = [
   { id: 's1', name: '深水埗優質咖啡', position: { lat: 22.3307, lng: 114.1622 }, type: 'quality', description: '1.5x 積分加成' },
   { id: 's2', name: '正港達人打卡點', position: { lat: 22.3320, lng: 114.1600 }, type: 'bonus', description: '3x 積分限定' },
+];
+
+interface Reward {
+  id: string;
+  name: string;
+  points: number;
+  description: string;
+  icon: any;
+  color: string;
+}
+
+const REWARDS: Reward[] = [
+  { id: 'u1', name: '中電 (CLP) $50 津貼', points: 5000, description: '直接扣減電費帳單', icon: Zap, color: 'text-hk-neon-yellow' },
+  { id: 'u2', name: '水務署 $20 津貼', points: 2000, description: '直接扣減水費帳單', icon: Droplets, color: 'text-nike-blue' },
+  { id: 'u3', name: '煤氣 (Towngas) $30 津貼', points: 3000, description: '直接扣減煤氣帳單', icon: Flame, color: 'text-nike-red' },
+  { id: 'u4', name: '百佳 $10 現金券', points: 1000, description: '全港百佳分店適用', icon: Gift, color: 'text-hk-neon-pink' },
 ];
 
 // --- Components ---
@@ -257,23 +273,24 @@ const CameraScanner = ({ onScanComplete }: { onScanComplete: (receipt: Receipt) 
   const [isInitializing, setIsInitializing] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
 
   useEffect(() => {
-    let stream: MediaStream | null = null;
-
     async function setupCamera() {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: 'environment' },
+        const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
           audio: false 
         });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
+        setStream(mediaStream);
         setIsInitializing(false);
       } catch (err) {
         console.error("Camera access error:", err);
-        setError("無法啟動相機。請確保已授權相機存取權限。");
+        setError("無法啟動相機。請確保已授權相機存取權限，並在 HTTPS 環境下使用。");
         setIsInitializing(false);
       }
     }
@@ -286,6 +303,15 @@ const CameraScanner = ({ onScanComplete }: { onScanComplete: (receipt: Receipt) 
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(err => {
+        console.error("Video play error:", err);
+      });
+    }
+  }, [stream]);
 
   const captureAndAnalyze = async () => {
     if (!videoRef.current || !canvasRef.current) return;
@@ -310,7 +336,7 @@ const CameraScanner = ({ onScanComplete }: { onScanComplete: (receipt: Receipt) 
         contents: [
           {
             parts: [
-              { text: "Analyze this receipt image. Extract the shop name, total amount, and date. Determine if it's a local Hong Kong small shop (isHKQuality). Return ONLY a JSON object with these fields: { \"shop\": string, \"amount\": number, \"date\": string, \"isHKQuality\": boolean }. If you can't find a field, use a reasonable default." },
+              { text: "Analyze this receipt image. Extract the shop name, total amount, and date. Determine if it's a local Hong Kong small shop (isHKQuality). Return ONLY a JSON object with these fields: { \"shop\": string, \"amount\": number, \"date\": string, \"isHKQuality\": boolean }. If you can't find a field, use a reasonable default. For the amount, look for 'TOTAL', 'NET', 'AMOUNT', or '$' symbols." },
               { inlineData: { mimeType: "image/jpeg", data: base64Image } }
             ]
           }
@@ -367,6 +393,7 @@ const CameraScanner = ({ onScanComplete }: { onScanComplete: (receipt: Receipt) 
               ref={videoRef} 
               autoPlay 
               playsInline 
+              muted
               className="w-full h-full object-cover"
             />
             <canvas ref={canvasRef} className="hidden" />
@@ -414,8 +441,26 @@ export default function App() {
   const [receipts, setReceipts] = useState(RECENT_RECEIPTS);
   const [showBlindBox, setShowBlindBox] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [showRedeemModal, setShowRedeemModal] = useState<Reward | null>(null);
 
   const totalPoints = members.reduce((acc, m) => acc + m.points, 0);
+
+  const handleRedeem = (reward: Reward) => {
+    if (totalPoints < reward.points) return;
+    
+    // Deduct points from members proportionally or from owner
+    setMembers(prev => {
+      let remainingToDeduct = reward.points;
+      return prev.map(m => {
+        const deduction = Math.min(m.points, remainingToDeduct);
+        remainingToDeduct -= deduction;
+        return { ...m, points: m.points - deduction };
+      });
+    });
+    
+    setShowRedeemModal(null);
+    alert(`成功兌換 ${reward.name}！津貼將於下期帳單自動扣除。`);
+  };
 
   return (
     <div className="min-h-screen bg-nike-grey-50 pb-24 max-w-md mx-auto shadow-2xl relative">
@@ -445,7 +490,12 @@ export default function App() {
                   {members.map(member => (
                     <div key={member.id} className="flex flex-col items-center gap-2 min-w-[70px]">
                       <div className="relative">
-                        <img src={member.avatar} alt={member.name} className="w-14 h-14 rounded-full bg-nike-grey-200 border-2 border-white shadow-sm" />
+                        <img 
+                          src={member.avatar} 
+                          alt={member.name} 
+                          referrerPolicy="no-referrer"
+                          className="w-14 h-14 rounded-full bg-nike-grey-200 border-2 border-white shadow-sm object-cover" 
+                        />
                         {member.role === 'owner' && (
                           <div className="absolute -top-1 -right-1 bg-nike-black text-white p-1 rounded-full">
                             <Trophy size={10} />
@@ -588,28 +638,34 @@ export default function App() {
               </div>
 
               <div className="bg-nike-black text-white p-6">
-                <h4 className="text-xs font-bold uppercase tracking-widest mb-4">積分兌換中心</h4>
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-xs font-bold uppercase tracking-widest">積分兌換中心</h4>
+                  <p className="text-[10px] font-bold text-nike-grey-500 uppercase tracking-widest">餘額: {totalPoints} pts</p>
+                </div>
                 <div className="flex flex-col gap-4">
-                  <div className="flex justify-between items-center border-b border-nike-grey-800 pb-4">
-                    <div className="flex items-center gap-3">
-                      <Zap size={20} className="text-hk-neon-yellow" />
-                      <div>
-                        <p className="text-xs font-bold">中電 (CLP) 帳單</p>
-                        <p className="text-[10px] text-nike-grey-500">帳單號碼: **** 8291</p>
+                  {REWARDS.map(reward => (
+                    <div key={reward.id} className="flex justify-between items-center border-b border-nike-grey-800 pb-4">
+                      <div className="flex items-center gap-3">
+                        <reward.icon size={20} className={reward.color} />
+                        <div>
+                          <p className="text-xs font-bold">{reward.name}</p>
+                          <p className="text-[10px] text-nike-grey-500">{reward.description}</p>
+                        </div>
                       </div>
+                      <button 
+                        onClick={() => setShowRedeemModal(reward)}
+                        disabled={totalPoints < reward.points}
+                        className={cn(
+                          "text-[10px] font-bold px-3 py-1 uppercase tracking-widest transition-colors",
+                          totalPoints >= reward.points 
+                            ? "bg-hk-neon-cyan text-nike-black" 
+                            : "bg-nike-grey-800 text-nike-grey-500 cursor-not-allowed"
+                        )}
+                      >
+                        {reward.points} pts
+                      </button>
                     </div>
-                    <button className="text-[10px] font-bold bg-nike-grey-800 px-3 py-1 uppercase tracking-widest">立即扣減</button>
-                  </div>
-                  <div className="flex justify-between items-center border-b border-nike-grey-800 pb-4">
-                    <div className="flex items-center gap-3">
-                      <Droplets size={20} className="text-nike-blue" />
-                      <div>
-                        <p className="text-xs font-bold">水務署帳單</p>
-                        <p className="text-[10px] text-nike-grey-500">帳單號碼: **** 3310</p>
-                      </div>
-                    </div>
-                    <button className="text-[10px] font-bold bg-nike-grey-800 px-3 py-1 uppercase tracking-widest">立即扣減</button>
-                  </div>
+                  ))}
                 </div>
               </div>
 
@@ -625,6 +681,60 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Redeem Confirmation Modal */}
+      <AnimatePresence>
+        {showRedeemModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] bg-nike-black/80 flex items-center justify-center p-6 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-white w-full max-w-xs p-6 flex flex-col gap-6"
+            >
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className={cn("w-16 h-16 rounded-full flex items-center justify-center bg-nike-grey-100", showRedeemModal.color)}>
+                  <showRedeemModal.icon size={32} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold uppercase tracking-tight">確認兌換?</h3>
+                  <p className="text-xs text-nike-grey-500 mt-1">{showRedeemModal.name}</p>
+                </div>
+              </div>
+
+              <div className="bg-nike-grey-50 p-4 border border-nike-grey-200">
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest mb-2">
+                  <span>所需積分</span>
+                  <span className="text-nike-red">{showRedeemModal.points} pts</span>
+                </div>
+                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
+                  <span>剩餘積分</span>
+                  <span>{totalPoints - showRedeemModal.points} pts</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={() => handleRedeem(showRedeemModal)}
+                  className="nike-pill bg-nike-black text-white text-xs w-full py-3"
+                >
+                  確認兌換
+                </button>
+                <button 
+                  onClick={() => setShowRedeemModal(null)}
+                  className="text-[10px] font-bold uppercase tracking-widest text-nike-grey-500 py-2"
+                >
+                  取消
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Blind Box Modal */}
       <AnimatePresence>
