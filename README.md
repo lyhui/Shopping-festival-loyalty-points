@@ -1,3 +1,8 @@
+# About
+This is another project during my CUHK Master in Advertising study. The course is Creative Works: Appreciation and Strategy.
+The app serves as one of the components in attracting more locals to stay spending in Hong Kong, instead of going north.
+
+
 <div align="center">
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
